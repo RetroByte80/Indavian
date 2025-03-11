@@ -1,0 +1,7 @@
+{% block content %}
+<form method="post" action="{% url 'NewProject' %}" enctype="multipart/form-data">  
+    {% csrf_token %}  
+    {{ form.as_p }}  
+    <button type="submit">Create Project</button>  
+</form> 
+{% endblock content %}

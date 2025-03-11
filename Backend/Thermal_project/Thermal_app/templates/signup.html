@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Signup</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;600;700&display=swap');
+        *{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins',sans-serif;
+        }
+        body{
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: auto;
+            margin-top: 50px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .text {
+            color: #86BB46;
+            font-size: 36px;
+            font-weight: 700;
+        }
+        .underline {
+            width: 70px;
+            height: 5px;
+            background: #86BB46;
+            border-radius: 9px;
+        }
+        .inputs {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 300px;
+            height: 40px;
+            background: #eaeaea;
+            border-radius: 6px;
+            padding: 5px;
+        }
+        .input input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #797979;
+            font-size: 16px;
+        }
+        .submit-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+        }
+        .submit {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 220px;
+            height: 50px;
+            color: #fff;
+            background: #86BB46;
+            border-radius: 50px;
+            font-size: 19px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .already-have-account {
+            display: flex;
+            justify-content: center;
+            font-size: 18px;
+            text-align: center;
+            color: #797979;
+            margin-top: 20px;
+        }
+        .already-have-account a {
+            color: #86BB46;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="text">Sign Up</div>
+            <div class="underline"></div>
+        </div>
+
+        <form action="Signup" method="POST">
+            {% csrf_token %}
+            
+            <div class="inputs">
+
+                {{ form.username.label }}
+                {{ form.username }}
+
+                {{ form.email.label }}
+                {{ form.email }}
+                
+                {{ form.password1.label }}
+                {{ form.password1 }}
+                
+                {{ form.password2.label }}
+                {{ form.password2 }}
+            </div>
+            <div>
+                <button type="submit">Sign Up</button>
+            </div>
+            
+        </form>
+
+        <div class="already-have-account">
+            Already have an account? <a href="{% url 'login' %}">Login</a>
+        </div>
+        <div class="already-have-account">
+            Email: info@indavian.com<br/>
+            Phone: 9769681099
+        </div>
+    </div>
+</body>
+</html>
