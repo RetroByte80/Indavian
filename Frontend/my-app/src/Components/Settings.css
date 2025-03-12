@@ -1,0 +1,126 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 0 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.header-title {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+}
+
+.header-menu {
+  display: flex;
+  gap: 20px;
+  justify-content: flex-end;
+}
+
+.header-menu a {
+  text-decoration: none;
+  color: #000;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+}
+
+.username {
+  margin-left: 10px;
+}
+
+.settings-content {
+  padding: 24px;
+}
+
+.settings-section {
+  margin-bottom: 40px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.settings-content {
+  width: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.settings-content .ant-form {
+  width: 600px;
+  margin: 0 auto; /* add this line to center the form */
+  padding: 24px; /* add some padding to make it look better */
+  border: 1px solid #ddd; /* add a border to make it look like a modal */
+  border-radius: 4px; /* add some rounded corners */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* add some shadow to make it look like a modal */
+}
+
+.settings-section {
+  margin-top: 24px;
+}
+
+.settings-item {
+  margin-bottom: 16px;
+}
+
+.ant-list {
+  width: 400px; /* set a fixed width for the list */
+  margin: 0 auto; /* center the list horizontally */
+  border-radius: 4px;
+}
+
+.ant-list-item {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.ant-list-item:last-child {
+  border-bottom: none;
+}
+
+.ant-list-item-meta {
+  align-items: center;
+}
+
+.ant-list-item-meta-avatar {
+  margin-right: 16px;
+}
+
+.ant-list-item-meta-title {
+  font-weight: bold;
+  text-align: left;
+}
+
+.ant-list-item-meta-description {
+  color: #666;
+  text-align: left;
+}
+
+.logout-button {
+  background-color: #d1d0d0;
+  justify-content: right;
+  align-content: right;
+  margin-right: auto;
+  border: none;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background-color: #f0f0f0;
+}

@@ -1,0 +1,111 @@
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    padding: 0 24px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .logo {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  .header-title {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+  }
+  
+  .header-menu {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .header-menu a {
+    text-decoration: none;
+    color: #000;
+  }
+  
+  .user-icon {
+    font-size: 24px;
+  }
+  
+  .site-layout-background {
+    background: #fff;
+  }
+  
+  .reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+  }.header-link {
+    margin: 0 15px;
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  
+  .header-link:hover {
+    color: #d4d4d4;
+  }
+  
+  .selected {
+    background-color: #e6f7ff;
+  }
+  
+  .table-row-completed {
+    background-color: #f6ffed;
+  }
+  
+  .table-row-progress {
+    background-color: #fffbe6;
+  }
+  
+  .table-row-pending {
+    background-color: #fff1f0;
+  }
+  
+  
+  .download-icon {
+    font-size: 24px;
+  }
+
+
+.report-cards {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-card {
+  transition: transform 0.3s;
+}
+
+.report-card:hover {
+  transform: translateY(-5px);
+}
+
+.project-item.selected {
+  background-color: #E6F7FF;
+  border-left: 5px;
+}
+
+.sider {
+  background-color: #f0f0f0;
+  border-right: 1px solid #ddd;
+  padding: 16px;
+}
+
+.ant-layout-sider {
+  background-color: #F0F2F5; /* Sider background */
+}
+
+.project-list {
+  background-color: #F0F2F5; /* Card background color */
+  border: none; /* Remove default border */
+}
+
+  
