@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Typography, Button, Empty, Table, message, Row, Col } from "antd";
+import {
+  Layout,
+  Typography,
+  Button,
+  Empty,
+  Table,
+  message,
+  Row,
+  Col,
+} from "antd";
 import {
   FileTextOutlined,
   DownloadOutlined,
@@ -16,8 +25,8 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
-} from 'recharts';
+  Cell,
+} from "recharts";
 import * as XLSX from "xlsx"; // For parsing Excel files
 import Header from "./Home.jsx";
 import "./Reports.css";
@@ -33,10 +42,13 @@ function Reports() {
   const [chartData, setChartData] = useState([]); // For chart visualization
 
   const fetchCsrfToken = async () => {
-    const response = await fetch("https://jrx1jscm-8000.inc1.devtunnels.ms/csrftoken/", {
-      method: "GET",
-      credentials: "include",
-    });
+    const response = await fetch(
+      "https://jrx1jscm-9000.inc1.devtunnels.ms/csrftoken/",
+      {
+        method: "GET",
+        credentials: "include",
+      }
+    );
     const data = await response.json();
     return data["csrftoken"];
   };
@@ -45,13 +57,16 @@ function Reports() {
     const fetchProjects = async () => {
       const csrfToken = await fetchCsrfToken();
       try {
-        const response = await fetch("https://jrx1jscm-8000.inc1.devtunnels.ms/projects/", {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "X-CSRFToken": csrfToken,
-          },
-        });
+        const response = await fetch(
+          "https://jrx1jscm-9000.inc1.devtunnels.ms/projects/",
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "X-CSRFToken": csrfToken,
+            },
+          }
+        );
         const data = await response.json();
         setProjects(data);
         setLoading(false);
@@ -63,53 +78,63 @@ function Reports() {
     fetchProjects();
   }, []);
 
-  const handleProjectSelect = async (projectId) => {
+ const handleProjectSelect = async (projectId) => {
     setLoading(true);
     const csrfToken = await fetchCsrfToken();
-    try {
-      const response = await fetch(
-        `https://jrx1jscm-8000.inc1.devtunnels.ms/reports/${projectId}/`,
-        {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "X-CSRFToken": csrfToken,
-          },
-        }
-      );
-      const data = await response.json();
-
-      if (!Array.isArray(data) || !data.every((item) => item.report_file)) {
-        throw new Error(
-          'Invalid response format: Each item in the array must have a "report_file" key.'
-        );
+  try {
+    // Fetch reports
+    const reportsResponse = await fetch(
+      `https://jrx1jscm-9000.inc1.devtunnels.ms/reports/${projectId}/`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "X-CSRFToken": csrfToken,
+        },
       }
-
-      const baseUrl = "https://jrx1jscm-8000.inc1.devtunnels.ms";
-      const reports = data.map((item) => ({
+    );
+    const reportsData = await reportsResponse.json();
+    const baseUrl = "https://jrx1jscm-9000.inc1.devtunnels.ms";
+    let reports = [];
+    if (Array.isArray(reportsData) && reportsData.length > 0) {
+      reports = reportsData.map((item) => ({
         name: item.name,
-        url: `${baseUrl}${item.report_file}`,
-        surveyId: item.id,  // Assuming `survey_id` is returned in `data`
+        // Use the report_file if available, otherwise an empty string
+        url: item.report_file ? `${baseUrl}${item.report_file}` : "",
+        surveyId: item.id,
+        // Set a flag if defects_file (XLSX) is available
+        hasXlsx: !!item.defects_file ,
       }));
-
-      // console.log("Reports:", reports);
-      setReportFile(reports);
-      // Reset chart data when selecting a new project
-      setChartData([]);
-      fetchSurveys(projectId);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching report:", error);
-      setReportFile([]);
-      setLoading(false);
     }
-  };
 
+   // Call fetchSurveys to get survey data
+   const surveysData = await fetchSurveys(projectId);
+
+   // If there are no report rows but surveys exist, build rows from surveys
+   if (reports.length === 0 && Array.isArray(surveysData) && surveysData.length > 0) {
+     reports = surveysData.map((survey) => ({
+       name: survey.name || `Survey ${survey.id}`,
+       url: "", // No report file available
+       surveyId: survey.id,
+       hasXlsx: !!survey.defects_file ,
+     }));
+   }
+    setReportFile(reports);
+    console.log(reports);
+    // Reset any existing chart data
+    setChartData([]);
+  } catch (error) {
+    console.error("Error fetching project details:", error);
+    setReportFile([]);
+  } finally {
+    setLoading(false);
+  }
+};
   const fetchSurveys = async (surveyId) => {
     const csrfToken = await fetchCsrfToken();
     try {
       const response = await fetch(
-        `https://jrx1jscm-8000.inc1.devtunnels.ms/projectsurvey/${surveyId}/`,
+        `https://jrx1jscm-9000.inc1.devtunnels.ms/projectsurvey/${surveyId}/`,
         {
           method: "GET",
           credentials: "include",
@@ -119,11 +144,13 @@ function Reports() {
         }
       );
       if (!response.ok)
-        throw new Error(`Error fetching surveys: ${response.status}`);
+        throw new Error('Error fetching surveys: ${response.status}');
       const surveyData = await response.json();
       setSurvey(surveyData);
+      return surveyData; // Ensure the data is returned here
     } catch (error) {
       console.error("Error fetching surveys:", error);
+      return []; // Return an empty array on error
     } finally {
       setLoading(false);
     }
@@ -133,7 +160,7 @@ function Reports() {
     const csrfToken = await fetchCsrfToken();
     try {
       const response = await fetch(
-        `https://jrx1jscm-8000.inc1.devtunnels.ms/surveydetail/${surveyId}/`,
+        `https://jrx1jscm-9000.inc1.devtunnels.ms/surveydetail/${surveyId}/`,
         {
           method: "GET",
           credentials: "include",
@@ -152,7 +179,7 @@ function Reports() {
 
       // Fetch and parse the XLSX file from the survey data
       if (data.defects_file) {
-        const xlsxUrl = `https://jrx1jscm-8000.inc1.devtunnels.ms${data.defects_file}`;
+        const xlsxUrl = `https://jrx1jscm-9000.inc1.devtunnels.ms${data.defects_file}`;
         await handleParseXlsx(xlsxUrl);
       }
     } catch (error) {
@@ -171,20 +198,20 @@ function Reports() {
         const workbook = XLSX.read(buffer, { type: "array" });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-  
+
         // Process data into chart format
         const defectCounts = {};
         data.slice(1).forEach((row) => {
-          const defectClass = row[3] || "Unknown"; 
+          const defectClass = row[3] || "Unknown";
           if (!defectCounts[defectClass]) defectCounts[defectClass] = 0;
           defectCounts[defectClass]++;
         });
-  
+
         const formattedData = Object.keys(defectCounts).map((key) => ({
           defect: key,
           count: defectCounts[key],
         }));
-  
+
         setChartData(formattedData);
         resolve(formattedData);
       } catch (error) {
@@ -200,7 +227,7 @@ function Reports() {
   //   setLoading(true);
   //   const csrfToken = await fetchCsrfToken();
   //   try {
-  //     const response = await fetch(`https://jrx1jscm-8000.inc1.devtunnels.ms/generate_report/${surveyId}/`, {
+  //     const response = await fetch(`https://jrx1jscm-9000.inc1.devtunnels.ms/generate_report/${surveyId}/`, {
   //       method: "POST",
   //       credentials: "include",
   //       headers: {
@@ -222,11 +249,10 @@ function Reports() {
   //   }
   // };
 
-
   // Define table columns
   const columns = [
     {
-      title: "Report Name",
+      title: "Survey Name",
       dataIndex: "name",
       key: "name",
     },
@@ -241,17 +267,21 @@ function Reports() {
             href={record.url}
             // onClick={() => generateReport(record.surveyId)}
             target="_blank"
+            disabled={!record.url}
             style={{ marginRight: "10px" }}
           >
             Download
           </Button>
-           <Button
-          icon={<FileTextOutlined />}
-          onClick={() =>handleSurveyVisualization(record.surveyId)} // Pass surveyId to generateReport
-          style={{ color: "#1890ff" }}
-        >
-          Visualize Report
-        </Button> 
+          <Button
+            icon={<FileTextOutlined />}
+            onClick={() =>
+              record.hasXlsx && handleSurveyVisualization(record.surveyId)
+            } // Pass surveyId to generateReport
+            disabled={!record.hasXlsx}
+            style={{ color: record.hasXlsx ? "#1890ff" : "gray" }}
+          >
+            Visualize Report
+          </Button>
           {/* <Button
             icon={<DownloadOutlined />}
             onClick={() => {
@@ -277,8 +307,8 @@ function Reports() {
   }));
 
   // Chart configuration for Ant Design Charts
-// Inside your Reports component, replace the config object with:
-const COLORS = ['#1890ff', '#3EE096', '#FFA39E', '#FFB200', '#722ED1'];
+  // Inside your Reports component, replace the config object with:
+  const COLORS = ["#1890ff", "#3EE096", "#FFA39E", "#FFB200", "#722ED1"];
 
   return (
     <Layout>
@@ -320,8 +350,10 @@ const COLORS = ['#1890ff', '#3EE096', '#FFA39E', '#FFB200', '#722ED1'];
                 projects.map((project) => (
                   <li
                     key={project.id}
-                    onClick={() =>
-                     { setSelectedProject(project); handleProjectSelect(project.id)}}
+                    onClick={() => {
+                      setSelectedProject(project);
+                      handleProjectSelect(project.id);
+                    }}
                     className={`project-item ${
                       selectedProject && selectedProject.id === project.id
                         ? "selected"
@@ -342,9 +374,7 @@ const COLORS = ['#1890ff', '#3EE096', '#FFA39E', '#FFB200', '#722ED1'];
                   </li>
                 ))
               ) : (
-                
                 <Empty description="No report available." />
-                
               )}
             </ul>
           </div>
@@ -363,65 +393,90 @@ const COLORS = ['#1890ff', '#3EE096', '#FFA39E', '#FFB200', '#722ED1'];
               <Typography.Text>Loading...</Typography.Text>
             ) : reportFile.length > 0 ? (
               <>
-              <Table
-                dataSource={dataSource}
-                columns={columns}
-                pagination={false}
-              />
-               {chartData.length > 0 && (
-  <div style={{ marginTop: "32px" }}>
-    <Typography.Title level={4}>Defect Visualization</Typography.Title>
-    <Row gutter={[16, 16]}>
-      <Col span={12}>
-        <ResponsiveContainer width="150%" height={400} style={{alignContent : "center"}}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="defect" />
-            <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="count" fill="#1890ff" name="Defect Count">
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </Col>
-      </Row>
-      <Row gutter={[16, 16]}>
-      <Col span={12}>
-        <ResponsiveContainer width="150%" height={400}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              dataKey="count"
-              nameKey="defect"
-              cx="50%"
-              cy="50%"
-              outerRadius={150}
-              label={({ defect, percent }) => `${defect}: ${(percent * 100).toFixed(1)}%`}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </Col>
-    </Row>
-  </div>
+                <Table
+                  dataSource={dataSource}
+                  columns={columns}
+                  pagination={false}
+                />
+                {chartData.length > 0 && (
+                  <div style={{ marginTop: "32px" }}>
+                    <Typography.Title level={4}>
+                      Defect Visualization
+                    </Typography.Title>
+                    <Row gutter={[16, 16]}>
+                      <Col span={12}>
+                        <ResponsiveContainer
+                          width="150%"
+                          height={400}
+                          style={{ alignContent: "center" }}
+                        >
+                          <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="defect" />
+                            <YAxis
+                              label={{
+                                value: "Count",
+                                angle: -90,
+                                position: "insideLeft",
+                              }}
+                            />
+                            <Tooltip />
+                            <Legend />
+                            <Bar
+                              dataKey="count"
+                              fill="#1890ff"
+                              name="Defect Count"
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Col>
+                    </Row>
+                    <Row gutter={[16, 16]}>
+                      <Col span={12}>
+                        <ResponsiveContainer width="150%" height={400}>
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              dataKey="count"
+                              nameKey="defect"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={150}
+                              label={({ defect, percent }) =>
+                                `${defect}: ${(percent * 100).toFixed(1)}%`
+                              }
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </Col>
+                    </Row>
+                  </div>
                 )}
-                </>
+              </>
             ) : (
-              <div style={{ textAlign: 'center', marginTop: '20vh' }}>
-                <FileTextOutlined style={{ fontSize: '64px', color: '#1890ff' }} />
+              <div style={{ textAlign: "center", marginTop: "20vh" }}>
+                <FileTextOutlined
+                  style={{ fontSize: "64px", color: "#1890ff" }}
+                />
                 <Empty description="No report selected. Please select a report from the sidebar." />
-                </div>
+              </div>
             )}
-            
           </Content>
         </Layout>
       </Layout>
@@ -431,6 +486,6 @@ const COLORS = ['#1890ff', '#3EE096', '#FFA39E', '#FFB200', '#722ED1'];
 
 export default Reports;
 
-
-
-{/* reportFile.length > 0 ? */}
+{
+  /* reportFile.length > 0 ? */
+}
