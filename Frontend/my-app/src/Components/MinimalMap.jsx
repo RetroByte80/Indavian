@@ -9,6 +9,7 @@ class MinimalMap extends Component {
     this.defaultZoom = 15; // Keep default zoom for cases where zoom is not provided
     // *** Store polygon references ***
     this.polygons = [];
+    this.infoWindow = null;
   }
 
 
@@ -34,7 +35,7 @@ class MinimalMap extends Component {
  
   getProjectCenter() {
     const { selectedProject } = this.props;
-    let center = null;
+    let center = { lat: 20.5937, lng: 78.9629 };
     if (selectedProject && selectedProject.coordinates) {
       const parts = selectedProject.coordinates.split(',');
       if (parts.length === 2) {
@@ -42,14 +43,8 @@ class MinimalMap extends Component {
         const lng = parseFloat(parts[1].trim());
         if (!isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng)) {
           center = { lat, lng };
-        } else {
-          console.error("Parsed coordinates are invalid.");
         }
-      } else {
-        console.error("Invalid coordinates format. Expected 'lat,lng'.");
       }
-    } else {
-      console.warn("No project coordinates provided.");
     }
     console.log("Computed center:", center);
     return center;
@@ -61,12 +56,14 @@ class MinimalMap extends Component {
       console.error("Cannot initialize map without valid coordinates.");
       return;
     }
-
+    const zoomlevel = (center.lat === 20.5937 && center.lng === 78.9629) ? 5 : 15; // Zoom out for India, zoom in for project
     this.map = new window.google.maps.Map(this.mapRef.current, {
       center: center,
-      zoom: zoom,
+      zoom: zoomlevel,
       mapTypeId: 'satellite'
     });
+     // create shared InfoWindow
+    this.infoWindow = new window.google.maps.InfoWindow();
     console.log("Map initialized with center:", center, "and zoom:", zoom);
   }
 
@@ -145,6 +142,10 @@ class MinimalMap extends Component {
 
   // Draw polygons from selectedSurvey.polygonData
   drawPolygons() {
+     // ensure infoWindow exists
+     if (!this.infoWindow && window.google?.maps) {
+      this.infoWindow = new window.google.maps.InfoWindow();
+    } 
     // Remove old polygons
     this.polygons.forEach((poly) => poly.setMap(null));
     this.polygons = [];
@@ -172,6 +173,22 @@ class MinimalMap extends Component {
       //   map: this.map,
       //   title: defect.Defect,
       // });
+
+      // Add click listener for InfoWindow
+      polygon.addListener('click', (event) => {
+        // get click coords
+        const lat = event.latLng.lat().toFixed(6);
+        const lng = event.latLng.lng().toFixed(6);
+        const content = `
+          <div style=\"min-width:200px;\">
+            <h3>Defect: ${defect.Defect}</h3>
+            <p><strong>Location:</strong><br/>Lat: ${lat}<br/>Lng: ${lng}</p>
+          </div>
+        `;
+        this.infoWindow.setContent(content);
+        this.infoWindow.setPosition(event.latLng);
+        this.infoWindow.open(this.map);
+      });
     });
   }
 
@@ -193,39 +210,36 @@ class MinimalMap extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.selectedProject !== this.props.selectedProject && this.map) {
+    if (prevProps.selectedProject !== this.props.selectedProject) {
       const center = this.getProjectCenter();
-      if (center) {
-        const zoom = this.defaultZoom;
-        console.log("Re-centering map to:", center, "with zoom:", zoom);
-        this.map.setCenter(center);
-        this.map.setZoom(zoom);
-        // Trigger resize event to ensure proper rendering
-        window.google.maps.event.trigger(this.map, 'resize');
-        this.map.setCenter(center); // Re-center again after resize
   
-        // If a survey is selected, fetch its TileJSON and add the overlay
-        if (this.props.selectedSurvey?.tileUrl) {
-          this.loadTileJSON(this.props.selectedSurvey.tileUrl)
-            .then(tileJson => {
-              if (tileJson) {
-                // Remove previous overlay if necessary
-                if (this.groundOverlay) {
-                  this.groundOverlay.setMap(null);
-                }
-                this.addGroundOverlay(tileJson);
-              }
-            })
-            .catch(error => console.error("Error loading TileJSON:", error));
-        }
+      if (!this.map) {
+        this.initializeMap(center); // Initialize if map is not yet created
       } else {
-        console.error("No valid coordinates available to re-center the map.");
+        const zoomLevel = (center.lat === 20.5937 && center.lng === 78.9629) ? 5 : 15; // Adjust zoom
+        this.map.setCenter(center);
+        this.map.setZoom(zoomLevel);
+        window.google.maps.event.trigger(this.map, 'resize'); // Ensure rendering updates
+      }
+
+  
+      // Reload tile overlays or other survey details if available
+      if (this.props.selectedSurvey?.tileUrl) {
+        this.loadTileJSON(this.props.selectedSurvey.tileUrl)
+          .then(tileJson => {
+            if (tileJson) {
+              if (this.groundOverlay) {
+                this.groundOverlay.setMap(null);
+              }
+              this.addGroundOverlay(tileJson);
+            }
+          })
+          .catch(error => console.error("Error loading TileJSON:", error));
       }
     }
   
-    // If the selected survey changes, update the overlay
+    // Handle survey changes or polygon updates here as before
     if (prevProps.selectedSurvey !== this.props.selectedSurvey && this.map) {
-      console.log("Selected survey:", this.props.selectedSurvey);
       if (this.props.selectedSurvey?.tileUrl) {
         this.loadTileJSON(this.props.selectedSurvey.tileUrl)
           .then(tileJson => {
@@ -241,30 +255,22 @@ class MinimalMap extends Component {
         console.warn("No tile URL available to add overlay.");
       }
     }
-     // 3) If polygonData changed, re-draw polygons
-     const oldPolygons = prevProps.selectedSurvey?.polygonData;
-     const newPolygons = this.props.selectedSurvey?.polygonData;
-     if (oldPolygons !== newPolygons) {
-       this.drawPolygons();
-     }
+  
+    // Redraw polygons if the survey’s polygonData has changed
+    const oldPolygons = prevProps.selectedSurvey?.polygonData;
+    const newPolygons = this.props.selectedSurvey?.polygonData;
+    if (oldPolygons !== newPolygons) {
+      this.drawPolygons();
+    }
   }
   
   render() {
-    const center = this.getProjectCenter();
-
-    // Render a placeholder if no valid coordinates are available
-    if (!center) {
-      return (
-        <div style={{ width: "100%", height: "650px", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <p>No valid project coordinates available.</p>
-        </div>
-      );
-    }
-
     return (
-      <div ref={this.mapRef} style={{ width: "100%", height: "650px" }} />
+      <div style={{ width: "100%", height: "650px" }}>
+        <div ref={this.mapRef} style={{ width: "100%", height: "100%" }} />
+      </div>
     );
-  }
+}
 }
 
 export default MinimalMap;
