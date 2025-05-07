@@ -1,5 +1,5 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Layout,
   Menu,
@@ -15,16 +15,17 @@ import {
   SearchOutlined,
   ProjectOutlined,
 } from "@ant-design/icons";
+import { Tabs, Tab, Box } from "@mui/material";
+import { Radio } from 'antd';
+import Button from '@mui/material/Button';
 import { Link, useNavigate } from "react-router-dom";
 import Header from "./Home.jsx";
-// import CreateProject from './CreateProject';
-// import orthomosaicImage from '../Images/Screenshot 2024-08-20 122320.png';
 import Mapbox from "./Mapbox.jsx";
 import Maps from "./Maps.jsx";
 import MinimalMap from "./MinimalMap.jsx";
 import * as XLSX from "xlsx";
-import { useLocation } from "react-router-dom";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { useLocation } from "react-router-dom"
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import "react-tabs/style/react-tabs.css";
 import "./Project.css";
 
@@ -40,13 +41,18 @@ const ProjectPage = () => {
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [map, setMap] = useState(null);
   const [surveyData, setSurvey] = useState([]);
-  const [activeTab, setActiveTab] = useState(0);
-  const [markers, setMarkers] = useState([]); // Initialize markers state
+  const [activeTab, setActiveTab] = useState(null);
+  const [markers, setMarkers] = useState([]); // Initialize markers state
   const [defectTableData, setDefectTableData] = useState([]);
+  const [filteredDefects, setFilteredDefects] = useState([]);
+  const [geojsonData, setGeojsonData] = useState(null);
+  const [overlayMode, setOverlayMode] = useState('thermal'); 
   const location = useLocation();
   const [polygonData, setPolygonData] = useState([]);
+  const [collapsed, setCollapsed] = useState(false); // New state for sidebar collapse
   const selectedProjectId = location.state?.selectedProjectId;
   const selectedSurveyId = location.state?.selectedSurveyId;
+
 
   const fetchCsrfToken = async () => {
     const response = await fetch(
@@ -58,7 +64,6 @@ const ProjectPage = () => {
     );
 
     const data = await response.json();
-    // console.log(data);
     return data["csrftoken"];
   };
 
@@ -118,9 +123,7 @@ const ProjectPage = () => {
         }
       );
       const data = await response.json();
-      // console.log(data);
       setSelectedProject(data);
-
       setLoading(false);
     } catch (error) {
       console.error("Error fetching project details:", error);
@@ -139,6 +142,37 @@ const ProjectPage = () => {
       handleProjectSelect(selectedProjectId);
     }
   }, [selectedProjectId]);
+
+  // const convertXlsxToGeoJSON = (buffer) => {
+  //   const wb = XLSX.read(buffer, { type: "array" });
+  //   const sheet = wb.Sheets[wb.SheetNames[0]];
+  //   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  //   if (rows.length < 2) return null;
+
+  //   const features = rows.slice(1).map((row) => {
+  //     const [className, latTL, lonTL, latBR, lonBR] = row;
+  //     const nLatTL = parseFloat(latTL);
+  //     const nLonTL = parseFloat(lonTL);
+  //     const nLatBR = parseFloat(latBR);
+  //     const nLonBR = parseFloat(lonBR);
+  //     return {
+  //       type: "Feature",
+  //       properties: { Defect: className || "Unknown" },
+  //       geometry: {
+  //         type: "Polygon",
+  //         coordinates: [[
+  //           [nLonTL, nLatTL],
+  //           [nLonTL, nLatBR],
+  //           [nLonBR, nLatBR],
+  //           [nLonBR, nLatTL],
+  //           [nLonTL, nLatTL],
+  //         ]],
+  //       },
+  //     };
+  //   });
+
+  //   return { type: "FeatureCollection", features };
+  // };
 
 const handleMapUpdateWithDefects = async (defectCoordinates) => {
     setDefectTableData([]); // Clear existing defect table data before updating
@@ -168,14 +202,6 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
 
       // 3) Build polygons from each row
       const polygons = data.slice(1).map((row) => {
-        // row[0] -> ClassName
-        // row[1] -> top_left_lat
-        // row[2] -> top_left_lng
-        // row[3] -> bottom_right_lat
-        // row[4] -> bottom_right_lng
-        // row[5] -> center_lat
-        // row[6] -> center_lng
-
         const Defect = row[0] || "UnknownClass";
         const GeoLatTopLeft = parseFloat(row[1]);
         const GeoLonTopLeft = parseFloat(row[2]);
@@ -198,8 +224,6 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
         }
 
         // For an axis-aligned bounding box:
-        //   top-right    = (topLeftLat, bottomRightLng)
-        //   bottom-left  = (bottomRightLat, topLeftLng)
         const topLeftLat = GeoLatTopLeft;
         const topLeftLng = GeoLonTopLeft;
         const bottomRightLat = GeoLatBottomRight;
@@ -248,6 +272,7 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
     }
   };
 
+  
   const fetchSurveys = async (projectId) => {
     const csrfToken = await fetchCsrfToken();
     try {
@@ -271,7 +296,7 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
       setLoading(false);
     }
   };
-
+  
   // When a survey is clicked, fetch its details and update selectedSurvey.
   const handleSurvey = async (surveyID) => {
     resetMapAndDefectList();
@@ -288,23 +313,46 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
       );
       const data = await response.json();
 
-      //  console.log(data);
+      setSelectedSurvey(data);
 
-      // Also update defect markers from the defects file.
-      const xlsx_file = `${BASE_URL}${data.defects_file}`;
-      const createpolygons= await handleMapUpdateWithDefects(xlsx_file);
-      // Set the selected survey with the processed tile link
-      setSelectedSurvey({
-        tileUrl: data.tile_link, // Pass the processed tile link
-        polygonData: createpolygons,
+     // Also update defect markers from the defects file.
+     const xlsx_file = `${BASE_URL}${data.defects_file}`;
+     const createpolygons= await handleMapUpdateWithDefects(xlsx_file);
+     // Set the selected survey with the processed tile link
+     setSelectedSurvey({
+       tileUrl: data.tile_link, // Pass the processed tile link
+       polygonData: createpolygons,
       });
-
       setLoading(false);
     } catch (error) {
       console.error("Error fetching survey details:", error);
       setLoading(false);
     }
   };
+  // keep your Tabs fully controlled:
+  // (pass `value={activeTab}` and update it in onChange)
+  const handleTabChange = (evt, newValue) => {
+   setActiveTab(newValue);
+   // 1) pull the survey object
+  const survey = surveyData[newValue];
+  if (!survey) return;
+
+  // 2) fetch all that survey’s details & defects
+  handleSurvey(survey.id);
+   // pull the defect‐file URL from that survey and refresh the map:
+    const coordsUrl = surveyData[newValue]?.defect_coordinates;
+   handleMapUpdateWithDefects(coordsUrl);
+  };
+
+  // Reset the tab (and map) on project switch:
+  useEffect(() => {
+      if (!selectedProject) return;
+     // clear selection so nothing shows until you click a tab,
+     // or you could default to the FIRST tab by doing setActiveTab(0)
+      setActiveTab(null);
+      // clear the map too:
+      handleMapUpdateWithDefects(null);
+    }, [selectedProjectId]);
 
   useEffect(() => {
     if (selectedSurveyId) {
@@ -320,12 +368,28 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
     }
   }, [selectedProject]);
 
+   // Handler to download the currently displayed defect table as an Excel file
+   const handleDownload = () => {
+    const ws = XLSX.utils.json_to_sheet(filteredDefects);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Defects");
+    XLSX.writeFile(wb, "defects.xlsx");
+  };
+
+  // Generate unique filters for the Defect Description column
+  const defectFilters = useMemo(() => {
+    const unique = [...new Set(defectTableData.map(item => item.Defect))];
+    return unique.map(def => ({ text: def, value: def }));
+  }, [defectTableData]);
+
   // Columns for the defects table
   const columns = [
     {
       title: "Defect Description",
       dataIndex: "Defect",
       key: "Defect",
+      filters: defectFilters,
+      onFilter: (value, record) => record.Defect === value,
     },
     {
       title: "Latitude",
@@ -368,9 +432,13 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
           </Menu>
         </div>
       </Header>
-      <Layout>
+      <Layout style={{ position: "relative" }}>
         <Sider
           width={300}
+          collapsible
+          collapsed={collapsed} // Use the collapsed state
+          collapsedWidth={50} 
+          trigger={null}
           className="site-layout-background"
           style={{
             backgroundColor: "#F0F2F5",
@@ -378,8 +446,10 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
             borderRight: "1px solid #d9d9d9",
             boxShadow: "2px 0 5px rgba(0,0,0,0.1)",
           }}
+
         >
-          <div className="project-filter" style={{ marginBottom: "20px" }}>
+          <div className="project-filter" style={{ marginBottom: "20px", display: collapsed ? 'none' : 'block' }}>
+
             <Input
               placeholder="Search projects"
               prefix={<SearchOutlined />}
@@ -389,10 +459,12 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
                 marginBottom: 16,
                 borderRadius: "8px",
                 boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+                overflow: "visible",
               }}
             />
           </div>
-          <div className="project-list">
+          <div className="project-list" style={{ display: collapsed ? 'none' : 'block' }}>
+
             <Typography.Title
               level={4}
               style={{ marginBottom: "16px", color: "#333" }}
@@ -442,6 +514,30 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
             )}
           </div>
         </Sider>
+            <div
+    className="custom-collapse-trigger"
+    onClick={() => setCollapsed(!collapsed)}
+    style={{
+      position: "absolute",
+      top: "50%",
+       // When expanded, position at the right edge of the Sider (300px)
+      // When collapsed, position at the right edge of the collapsed sider (80px)
+      left: collapsed ? "50px" : "300px",
+      transform: "translateY(-50%)",
+      backgroundColor: "#fff",
+      borderRadius: "50%",
+      width: "40px",
+      height: "40px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      boxShadow: "0 0 5px rgba(0, 0, 0, 0.3)",
+      zIndex: 1,
+    }}
+  >
+    {collapsed ? <RightOutlined /> : <LeftOutlined />}
+  </div>
         <Layout style={{ padding: "0 24px 24px" }}>
           <Content
             className="site-layout-background"
@@ -456,25 +552,28 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
                 {loading ? (
                   <Spin />
                 ) : (
-                  <div className="tab__header" alignItems="left">
-                    {surveyData.map((survey, index) => (
-                      <button
-                        style={{ padding: "5px" }}
-                        className={`${
-                          index === activeTab ? "active" : ""
-                        } tab__button`}
-                        key={survey.id}
-                        onClick={() => {
-                          setActiveTab(index); // Update active tab
-                          handleSurvey(survey.id); // Call handleSurvey with survey.id
-                        }}
-                      >
-                        {survey.name} {/* Use the actual survey name */}
-
-                      </button>
-                    ))}
-                  </div>
+                  <Box sx={{ borderBottom: 1, borderColor: "divider", marginBottom: "20px" }}>
+   <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          aria-label="Survey Selector"
+        >
+          {surveyData.map((survey, idx) => (
+            <Tab key={survey.id} label={survey.name} value={idx} />
+          ))}
+        </Tabs>
+</Box>
                 )}
+                 {/* --- Overlay toggle UI --- */}
+            <div style={{ marginBottom: 16, textAlign: 'right' }}>
+              <Radio.Group
+                value={overlayMode}
+                onChange={e => setOverlayMode(e.target.value)}
+              >
+                <Radio.Button value="thermal">Thermal</Radio.Button>
+                <Radio.Button value="rgb">RGB</Radio.Button>
+              </Radio.Group>
+            </div>
 
                 <div
                   className="map-container"
@@ -486,12 +585,15 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
                   }}
                 >
                   <MinimalMap
-                    // coordinates={activeSurveyData?.coordinates} // Uncomment if needed
-                    // ortho_image={selectedProject.ortho_image}
-                    // markers={markers} // Markers will be updated based on the selected survey
                     selectedProject={selectedProject}
                     selectedSurvey={selectedSurvey}
                     polygonData={selectedSurvey?.polygonData}
+                    // geojsonData={geojsonData}
+                    // overlayMode={overlayMode}
+
+                // pass in your two tile-URL templates:
+                // thermalTemplate={selectedSurvey?.thermal_tile_link}
+                // rgbTemplate={selectedSurvey?.rgb_tile_link}
                   />
                 </div>
                 <Card className="project-details">
@@ -520,10 +622,14 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
                   <br />
                   {/* Defect Table Section */}
                   <Typography.Title level={4}>Defects List</Typography.Title>
+                  <div style={{ textAlign: 'right', marginBottom: 8 }}>
+                      <Button variant="contained" onClick={handleDownload}>
+                        Download Defects
+                      </Button>
+                    </div>
                   <div
                     style={{
                       maxHeight: "300px", // Set a fixed height for scrollable table
-                      // overflowY: "auto",  // Enable scrolling only for the table
                       marginBottom: "20px",
                     }}
                   >
@@ -535,6 +641,7 @@ const handleMapUpdateWithDefects = async (defectCoordinates) => {
                       rowKey={(record) =>
                         `${record.Latitude}-${record.Longitude}`
                       }
+                      onChange={(_, __, ___, extra) => setFilteredDefects(extra.currentDataSource)}
                     />
                         
                   </div>
